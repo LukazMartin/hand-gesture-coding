@@ -2,8 +2,8 @@ import cv2
 import mediapipe as mp
 import pyautogui
 import math
-import pyperclip
 from write_code import Write
+import time
 
 # Initialize Mediapipe Hand Detection
 mp_drawing = mp.solutions.drawing_utils
@@ -23,6 +23,13 @@ cap = cv2.VideoCapture(0)
 
 cv2.waitKey(1)
 
+current_time = None
+finished = False
+
+print(" 1 - Variables")
+print(" 2 - Functions")
+print(" OK - Special Characters")
+print(" Thumbs up - Send")
 
 # Loop over video feed
 with mp_hands.Hands(
@@ -63,33 +70,31 @@ with mp_hands.Hands(
                 # Get the x, y, z coordinates of pinky
                 pinky_finger = hand_landmarks.landmark[mp_hands.HandLandmark.PINKY_TIP]
 
-                distance_i_t = math.sqrt((thumb_tip.x - index_finger.x)**2 + (thumb_tip.y - index_finger.y)**2 + (thumb_tip.z - index_finger.z)**2)
+                distance_i_t = math.sqrt((thumb_tip.x - index_finger.x)**2 + (thumb_tip.y - index_finger.y)**2)
                 distance_i_m = math.sqrt((middle_finger.x - index_finger.x)**2 + (middle_finger.y - index_finger.y)**2 + (middle_finger.z - index_finger.z)**2)
                 distance_m_p = math.sqrt((middle_finger.x - pinky_finger.x)**2 + (middle_finger.y - pinky_finger.y)**2 + (middle_finger.z - pinky_finger.z)**2)
 
                 if action is None:
-                    if middle_finger.y > index_finger_mcp.y and thumb_tip.y + 0.2 > index_finger.y:
-                        action = "var"
-                        print("One")
-                    elif distance_i_m < 0.1 and thumb_tip.y > index_finger_mcp.y and pinky_finger.y > index_finger_mcp.y:
-                        action = "func"
-                        print("Two")
-                    elif distance_i_t < 0.05:
-                        action = "spec"
-                        print("Ok")
-                    elif thumb_tip.y < index_finger.y:
-                        action = "send"
-                        print("Send")
-                    
-                    if action is not None:
-                        pyperclip.copy("#")
-                        pyautogui.hotkey("ctrl", "v")
-                        pyautogui.write(f" {action}\n")
+                    if (current_time is None or time.time() - current_time > 2) and not finished:
+                        if middle_finger.y > index_finger_mcp.y and thumb_tip.y + 0.2 > index_finger.y:
+                            action = "var"
+                            print("One: Variable")
+                        elif distance_i_m < 0.1 and thumb_tip.y > index_finger_mcp.y and pinky_finger.y > index_finger_mcp.y:
+                            action = "func"
+                            print("Two: Function ")
+                        elif distance_i_t < 0.05:
+                            action = "spec"
+                            print("Ok: Special")
+                        elif pinky_finger.y + 0.1 < index_finger.y:
+                            print("Send! :)")
+                            action = "send"
+                            finished = True
                 else:
                     if distance_i_t < 0.05:
-                        print(f"x: {index_finger.x} y: {index_finger.y}")
+                        # print(f"x: {index_finger.x} y: {index_finger.y}")
                         write.write(index_finger.x,index_finger.y,action)
                         action = None
+                        current_time = time.time()
 
 
         # Display the resulting image
@@ -98,6 +103,11 @@ with mp_hands.Hands(
         # Exit the program on pressing 'q' key
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+        # Send
+        if cv2.waitKey(1) & 0xFF == ord('a'):
+            action = "send"
+            write.write(index_finger.x,index_finger.y,action)
+            finished = True
 
 # Release Video Capture Device
 cap.release()
